@@ -71,6 +71,14 @@ plot_geometry_with_normals(domain_points,
 x_input = stacked_coords[:, 0:1]
 y_input = stacked_coords[:, 1:2]
 
+# Prepare normal vector inputs
+nx_input = np.zeros_like(x_input)
+ny_input = np.zeros_like(y_input)
+nx_input[idx_Internal] = nx_inner
+ny_input[idx_Internal] = ny_inner
+nx_input[idx_External] = nx_outer
+ny_input[idx_External] = ny_outer
+
 # Unpack the indices if you want
 idx_domain = index_arrays['idx_domain']
 idx_Set_1 = index_arrays['idx_Set_1']
@@ -98,6 +106,8 @@ applied_displacement = constant_array(3, len(idx_Set_3))
 # --- Define Variables ---
 x = sn.Variable('x')
 y = sn.Variable('y')
+nx = sn.Variable('nx')
+ny = sn.Variable('ny')
 
 # --- Define Functionals (NN outputs) ---
 hidden_layers = 4 * [100]  # 4 hidden layers, 100 neurons each, tanh activation
@@ -135,12 +145,12 @@ Ly = sn.diff(Sxy, x) + sn.diff(Syy, y)
 
 
 # Outer Boundary Traction Equations
-Tn_x_outer = Sxx * nx_outer + Sxy * ny_outer
-Tn_y_outer = Sxy * nx_outer + Syy * ny_outer
+Tn_x_outer = Sxx * nx + Sxy * ny
+Tn_y_outer = Sxy * nx + Syy * ny
 
 # Inner Boundary Traction Equations
-Tn_x_inner = Sxx * nx_inner + Sxy * ny_inner
-Tn_y_inner = Sxy * nx_inner + Syy * ny_inner
+Tn_x_inner = Sxx * nx + Sxy * ny
+Tn_y_inner = Sxy * nx + Syy * ny
 
 
 Targets = [Lx, Ly, c1, c2, c3, Uxy,Uxy,Uxy,Vxy,Vxy,Vxy,Tn_x_inner,Tn_y_inner,Tn_x_outer,Tn_y_outer]
@@ -165,12 +175,12 @@ Target_data = [
 # === Build and Train the SciANN Model ===
 sn.set_random_seed(42)  # Ensure reproducibility
 
-model = SciModel([x, y], Targets)
+model = SciModel([x, y, nx, ny], Targets)
 
 
 # === Train the model with adaptive weighting ===
 h = model.train(
-    [x_input, y_input],
+    [x_input, y_input, nx_input, ny_input],
     Target_data,
     epochs=100,
     shuffle=True,
@@ -185,7 +195,8 @@ target_labels = [
     'Lx', 'Ly',            # PDE residuals
     'c1', 'c2', 'c3',       # Constitutive laws
     'Uxy_set1', 'Uxy_set2','Uxy_set3', # Uxy Dirichlet BCs
-    'Vxy_set1', 'Vxy_set2','Vxy_set3'
+    'Vxy_set1', 'Vxy_set2','Vxy_set3',
+    'Tn_x_inner', 'Tn_y_inner', 'Tn_x_outer', 'Tn_y_outer'
 ]
 
 # Plot
@@ -205,4 +216,4 @@ titles = [
 ]
 
 # Predict and plot
-evaluate_and_plot_fields(x_input, y_input, functionals, titles)
+evaluate_and_plot_fields(x_input, y_input, functionals, titles, nx_input, ny_input)
