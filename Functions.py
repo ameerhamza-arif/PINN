@@ -401,11 +401,14 @@ def plot_training_loss(history, target_labels):
     plt.show()
 
 
-def evaluate_and_plot_fields(x_input, y_input, functionals, titles, figsize=(20, 4), cmap='jet'):
-    """
-    Evaluate SciANN functionals and plot field predictions.
-    """
-    predictions = [func.eval([x_input, y_input]) for func in functionals]
+def evaluate_and_plot_fields(x_input, y_input, functionals, titles, nx_input=None, ny_input=None,
+                             figsize=(20, 4), cmap='jet'):
+    """Evaluate SciANN functionals and plot field predictions."""
+    inputs = [x_input, y_input]
+    if nx_input is not None and ny_input is not None:
+        inputs = [x_input, y_input, nx_input, ny_input]
+
+    predictions = [func.eval(inputs) for func in functionals]
     fig, axs = plt.subplots(1, len(functionals), figsize=figsize)
 
     for ax, values, title in zip(axs, predictions, titles):
